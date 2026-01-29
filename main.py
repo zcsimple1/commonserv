@@ -8,7 +8,7 @@ OneNET MQTT Token 生成服务
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from mqtt import onenet_token
+from mqtt import onenet_token, onenet_token_custom
 import uvicorn
 
 app = FastAPI(
@@ -59,10 +59,26 @@ async def health_check():
 
 
 @app.get("/mqtt/onenet/v1/token/product")
-async def get_product_token():
-    """获取产品级 Token"""
+async def get_product_token(product_id: str = None, access_key: str = None, expire_hours: int = None):
+    """
+    获取产品级 Token
+
+    参数（可选）:
+        product_id: 产品 ID，不传则使用配置文件中的默认值
+        access_key: 访问密钥（Base64 编码），不传则使用配置文件中的默认值
+        expire_hours: Token 有效期（小时），默认 720 小时（30天）
+    """
     try:
-        token = onenet_token.generate_product_token()
+        # 如果传入了参数，使用传入的参数生成 Token
+        if product_id and access_key:
+            from mqtt import onenet_token_custom
+            if expire_hours is None:
+                expire_hours = 720
+            token = onenet_token_custom.generate_product_token_custom(product_id, access_key, expire_hours)
+        else:
+            # 使用配置文件中的默认值
+            token = onenet_token.generate_product_token(expire_hours if expire_hours else 720)
+
         return {
             "code": 0,
             "msg": "success",
@@ -96,6 +112,34 @@ async def get_device_token(device_name: str):
         }
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/mqtt/onenet/v1/token/custom/device")
+async def get_device_token_custom(product_id: str, device_id: str, access_key: str, expire_hours: int = None):
+    """
+    自定义参数生成设备级 Token
+
+    参数:
+        product_id: 产品 ID
+        device_id: 设备 ID
+        access_key: 访问密钥（Base64 编码）
+        expire_hours: Token 有效期（小时），可选，默认 720 小时
+    """
+    try:
+        if expire_hours is None:
+            expire_hours = 720
+        token = onenet_token_custom.generate_device_token_custom(product_id, device_id, access_key, expire_hours)
+        return {
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "token": token,
+                "device": device_id,
+                "type": "device"
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

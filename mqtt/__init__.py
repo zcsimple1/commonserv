@@ -7,6 +7,7 @@ OneNET MQTT 模块
 """
 
 from mqtt import onenet_token
+from mqtt import onenet_token_custom
 from mqtt import config
 
-__all__ = ["onenet_token", "config"]
+__all__ = ["onenet_token", "onenet_token_custom", "config"]
