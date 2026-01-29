@@ -11,7 +11,7 @@ import hmac
 import hashlib
 import json
 import time
-from mqtt.config import get_product_config, get_device_config
+from .config import get_product_config, get_device_config
 
 
 def generate_product_token(expire_hours: int = 720) -> str:
