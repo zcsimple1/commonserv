@@ -6,9 +6,9 @@ OneNET MQTT Token 生成服务
 提供产品级和设备级 Token 生成接口
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
-from mqtt import onenet_token, onenet_token_custom
+from mqtt import onenet_token, onenet_token_custom, token_cache
 import uvicorn
 
 app = FastAPI(
@@ -146,17 +146,47 @@ async def get_device_token_custom(product_id: str, device_id: str, access_key: s
 
 @app.get("/mqtt/onenet/v1/device/MO")
 @app.get("/mqtt/onenet/v1/device/mo")
-async def get_mo_token():
-    """获取 MO 设备的 Token（固定接口）"""
+async def get_mo_token(refresh: bool = Query(False, description="强制刷新缓存")):
+    """
+    获取 MO 设备的 Token（固定接口）
+
+    参数:
+        refresh: 是否强制刷新缓存，默认 False
+    """
     try:
+        cache_key = "device_MO"
+
+        # 如果强制刷新，删除缓存
+        if refresh:
+            token_cache.cache.refresh(cache_key)
+
+        # 尝试从缓存获取
+        cached_token = token_cache.cache.get(cache_key)
+        if cached_token:
+            return {
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "token": cached_token,
+                    "device": "MO",
+                    "type": "device",
+                    "cached": True
+                }
+            }
+
+        # 缓存未命中，生成新 Token
         token = onenet_token.generate_device_token("MO")
+        # 存入缓存
+        token_cache.cache.set(cache_key, token)
+
         return {
             "code": 0,
             "msg": "success",
             "data": {
                 "token": token,
                 "device": "MO",
-                "type": "device"
+                "type": "device",
+                "cached": False
             }
         }
     except Exception as e:
@@ -165,17 +195,47 @@ async def get_mo_token():
 
 @app.get("/mqtt/onenet/v1/device/MO1")
 @app.get("/mqtt/onenet/v1/device/mo1")
-async def get_mo1_token():
-    """获取 MO1 设备的 Token（固定接口）"""
+async def get_mo1_token(refresh: bool = Query(False, description="强制刷新缓存")):
+    """
+    获取 MO1 设备的 Token（固定接口）
+
+    参数:
+        refresh: 是否强制刷新缓存，默认 False
+    """
     try:
+        cache_key = "device_MO1"
+
+        # 如果强制刷新，删除缓存
+        if refresh:
+            token_cache.cache.refresh(cache_key)
+
+        # 尝试从缓存获取
+        cached_token = token_cache.cache.get(cache_key)
+        if cached_token:
+            return {
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "token": cached_token,
+                    "device": "MO1",
+                    "type": "device",
+                    "cached": True
+                }
+            }
+
+        # 缓存未命中，生成新 Token
         token = onenet_token.generate_device_token("MO1")
+        # 存入缓存
+        token_cache.cache.set(cache_key, token)
+
         return {
             "code": 0,
             "msg": "success",
             "data": {
                 "token": token,
                 "device": "MO1",
-                "type": "device"
+                "type": "device",
+                "cached": False
             }
         }
     except Exception as e:
@@ -193,6 +253,34 @@ async def list_devices():
         "data": {
             "devices": devices,
             "count": len(devices)
+        }
+    }
+
+
+@app.get("/mqtt/onenet/v1/cache")
+async def get_cache_info():
+    """获取缓存信息"""
+    cache_info = token_cache.cache.get_all()
+    return {
+        "code": 0,
+        "msg": "success",
+        "data": {
+            "cache": cache_info,
+            "expire_days": 29,
+            "count": len(cache_info)
+        }
+    }
+
+
+@app.delete("/mqtt/onenet/v1/cache")
+async def clear_cache():
+    """清空所有缓存"""
+    token_cache.cache.clear()
+    return {
+        "code": 0,
+        "msg": "success",
+        "data": {
+            "message": "缓存已清空"
         }
     }
 
