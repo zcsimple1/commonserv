@@ -99,8 +99,9 @@ def _generate_token(res: str, expire_time: int, access_key: bytes) -> str:
     method = "sha1"
 
     # 计算签名
-    # sign = base64(hmac_sha1(et + "\n" + res + "\n" + method, access_key))
-    text_to_sign = f"{expire_time}\n{res}\n{method}"
+    # 签名顺序: et + "\n" + method + "\n" + res + "\n" + version
+    et = str(expire_time)
+    text_to_sign = f"{et}\n{method}\n{res}\n{version}"
     signature = hmac.new(
         access_key,
         text_to_sign.encode("utf-8"),
@@ -111,11 +112,11 @@ def _generate_token(res: str, expire_time: int, access_key: bytes) -> str:
     sign_base64 = base64.b64encode(signature).decode("utf-8")
 
     # URL 编码
-    res_encoded = quote(res)
-    sign_encoded = quote(sign_base64)
+    res_encoded = quote(res, safe='')
+    sign_encoded = quote(sign_base64, safe='')
 
     # 组装 Token
-    token = f"version={version}&res={res_encoded}&et={expire_time}&method={method}&sign={sign_encoded}"
+    token = f"version={version}&res={res_encoded}&et={et}&method={method}&sign={sign_encoded}"
 
     return token
 
