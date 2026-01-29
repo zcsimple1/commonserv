@@ -35,7 +35,7 @@ wheels/
 Thumbs.db
 
 # 配置文件（包含敏感信息）
-mqtt/config.py
+#mqtt/config.py
 
 # 日志
 *.log
