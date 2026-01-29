@@ -6,7 +6,7 @@ OneNET MQTT 模块
 提供 Token 生成和设备配置功能
 """
 
-from . import onenet_token
-from . import config
+from mqtt import onenet_token
+from mqtt import config
 
 __all__ = ["onenet_token", "config"]
