@@ -25,7 +25,30 @@ async def root():
         "service": "Commonserv 微服务平台",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "routes": "/routes"
+    }
+
+
+@app.get("/routes")
+async def list_routes():
+    """列出所有可用路由"""
+    from fastapi.routing import APIRoute
+    routes = []
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods),
+                "summary": route.summary
+            })
+    return {
+        "code": 0,
+        "msg": "success",
+        "data": {
+            "routes": routes,
+            "count": len(routes)
+        }
     }
 
 
@@ -78,6 +101,7 @@ async def get_device_token(device_name: str):
 
 
 @app.get("/mqtt/onenet/v1/device/MO")
+@app.get("/mqtt/onenet/v1/device/mo")
 async def get_mo_token():
     """获取 MO 设备的 Token（固定接口）"""
     try:
@@ -96,6 +120,7 @@ async def get_mo_token():
 
 
 @app.get("/mqtt/onenet/v1/device/MO1")
+@app.get("/mqtt/onenet/v1/device/mo1")
 async def get_mo1_token():
     """获取 MO1 设备的 Token（固定接口）"""
     try:
