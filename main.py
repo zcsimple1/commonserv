@@ -77,6 +77,42 @@ async def get_device_token(device_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/mqtt/onenet/v1/device/MO")
+async def get_mo_token():
+    """获取 MO 设备的 Token（固定接口）"""
+    try:
+        token = onenet_token.generate_device_token("MO")
+        return {
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "token": token,
+                "device": "MO",
+                "type": "device"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/mqtt/onenet/v1/device/MO1")
+async def get_mo1_token():
+    """获取 MO1 设备的 Token（固定接口）"""
+    try:
+        token = onenet_token.generate_device_token("MO1")
+        return {
+            "code": 0,
+            "msg": "success",
+            "data": {
+                "token": token,
+                "device": "MO1",
+                "type": "device"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/mqtt/onenet/v1/devices")
 async def list_devices():
     """列出所有已配置的设备"""
