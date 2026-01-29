@@ -4,13 +4,14 @@
 """
 OneNET MQTT Token 生成模块
 基于 OneNET MQTT Token 文档实现
+Token 格式: version=2018-10-31&res=xxx&et=xxx&method=sha1&sign=xxx
 """
 
-import base64
 import hmac
 import hashlib
-import json
+import base64
 import time
+from urllib.parse import quote
 from mqtt.config import get_product_config, get_device_config
 
 
@@ -22,23 +23,20 @@ def generate_product_token(expire_hours: int = 720) -> str:
         expire_hours: Token 有效期（小时），默认 720 小时（30天）
 
     返回:
-        Token 字符串
+        Token 字符串，格式: version=2018-10-31&res=products%2F{product_id}&et={expire_time}&method=sha1&sign={sign}
     """
     config = get_product_config()
     product_id = config["product_id"]
     access_key = base64.b64decode(config["access_key"])
 
-    # Token 有效期时间戳
+    # Token 有效期时间戳（秒）
     expire_time = int(time.time()) + expire_hours * 3600
 
-    # 构建 Token 负载
-    payload = {
-        "product_id": product_id,
-        "expire_time": expire_time
-    }
+    # 产品级资源路径
+    res = f"products/{product_id}"
 
     # 生成 Token
-    token = _generate_token(payload, access_key)
+    token = _generate_token(res, expire_time, access_key)
 
     return token
 
@@ -52,7 +50,7 @@ def generate_device_token(device_name: str, expire_hours: int = 720) -> str:
         expire_hours: Token 有效期（小时），默认 720 小时（30天）
 
     返回:
-        Token 字符串
+        Token 字符串，格式: version=2018-10-31&res=products%2F{product_id}%2Fdevices%2F{device_id}&et={expire_time}&method=sha1&sign={sign}
 
     异常:
         ValueError: 设备不存在时抛出
@@ -70,50 +68,56 @@ def generate_device_token(device_name: str, expire_hours: int = 720) -> str:
     access_key = base64.b64decode(config["access_key"])
     device_id = device_config["device_id"]
 
-    # Token 有效期时间戳
+    # Token 有效期时间戳（秒）
     expire_time = int(time.time()) + expire_hours * 3600
 
-    # 构建 Token 负载
-    payload = {
-        "product_id": product_id,
-        "device_id": device_id,
-        "expire_time": expire_time
-    }
+    # 设备级资源路径
+    res = f"products/{product_id}/devices/{device_id}"
 
     # 生成 Token
-    token = _generate_token(payload, access_key)
+    token = _generate_token(res, expire_time, access_key)
 
     return token
 
 
-def _generate_token(payload: dict, access_key: bytes) -> str:
+def _generate_token(res: str, expire_time: int, access_key: bytes) -> str:
     """
-    生成 Token 的内部函数
+    生成 OneNET MQTT Token 的内部函数
 
     参数:
-        payload: Token 负载数据
+        res: 资源路径
+        expire_time: 过期时间戳（秒）
         access_key: 解码后的访问密钥
 
     返回:
         Token 字符串
     """
-    # 将负载转换为 JSON 字符串
-    payload_str = json.dumps(payload, separators=(",", ":"))
+    # Token 版本
+    version = "2018-10-31"
 
-    # 使用 HMAC-SHA256 生成签名
+    # 签名方法
+    method = "sha1"
+
+    # 计算签名
+    # sign = base64(hmac_sha1(et + "\n" + res + "\n" + method, access_key))
+    text_to_sign = f"{expire_time}\n{res}\n{method}"
     signature = hmac.new(
         access_key,
-        payload_str.encode("utf-8"),
-        hashlib.sha256
-    ).hexdigest()
+        text_to_sign.encode("utf-8"),
+        hashlib.sha1
+    ).digest()
 
-    # 组合 Token: payload + ":" + signature
-    token = f"{payload_str}:{signature}"
+    # Base64 编码签名
+    sign_base64 = base64.b64encode(signature).decode("utf-8")
 
-    # Base64 编码整个 Token
-    token_encoded = base64.b64encode(token.encode("utf-8")).decode("utf-8")
+    # URL 编码
+    res_encoded = quote(res)
+    sign_encoded = quote(sign_base64)
 
-    return token_encoded
+    # 组装 Token
+    token = f"version={version}&res={res_encoded}&et={expire_time}&method={method}&sign={sign_encoded}"
+
+    return token
 
 
 def decode_token(token: str, access_key: str) -> dict:
@@ -131,30 +135,43 @@ def decode_token(token: str, access_key: str) -> dict:
         ValueError: Token 无效或签名不匹配时抛出
     """
     try:
-        # Base64 解码
-        token_decoded = base64.b64decode(token.encode("utf-8")).decode("utf-8")
+        # 解析 Token
+        parts = {}
+        for param in token.split("&"):
+            key, value = param.split("=", 1)
+            parts[key] = value
 
-        # 分离 payload 和 signature
-        parts = token_decoded.split(":")
-        if len(parts) != 2:
-            raise ValueError("Token 格式无效")
+        # 验证版本
+        if parts.get("version") != "2018-10-31":
+            raise ValueError("Token 版本不支持")
 
-        payload_str, signature = parts
+        # URL 解码
+        res = parts["res"]
+        et = int(parts["et"])
+        method = parts["method"]
+        sign = parts["sign"]
 
-        # 验证签名
+        # 重新计算签名
         access_key_decoded = base64.b64decode(access_key)
+        text_to_sign = f"{et}\n{res}\n{method}"
         expected_signature = hmac.new(
             access_key_decoded,
-            payload_str.encode("utf-8"),
-            hashlib.sha256
-        ).hexdigest()
+            text_to_sign.encode("utf-8"),
+            hashlib.sha1
+        ).digest()
+        expected_sign_base64 = base64.b64encode(expected_signature).decode("utf-8")
 
-        if signature != expected_signature:
+        # 验证签名
+        if sign != quote(expected_sign_base64):
             raise ValueError("Token 签名无效")
 
-        # 解析 payload
-        payload = json.loads(payload_str)
-        return payload
+        return {
+            "version": parts["version"],
+            "res": res,
+            "expire_time": et,
+            "method": method,
+            "sign": sign
+        }
 
     except Exception as e:
         raise ValueError(f"Token 解码失败: {str(e)}")
