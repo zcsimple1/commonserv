@@ -14,10 +14,12 @@ PRODUCT_CONFIG = {
     "devices": {
         "MO": {
             "device_id": "MO",
+            "device_key": "THNRWXNxUWxjSWNUOXNoN0pNalBGR3pKVHd3TDBkbjQ=",
             "description": "MO设备"
         },
         "MO1": {
             "device_id": "MO1",
+            "device_key": "THNRWXNxUWxjSWNUOXNoN0pNalBGR3pKVHd3TDBkbjQ=",
             "description": "MO1设备"
         }
     }
