@@ -9,7 +9,7 @@ OneNET 设备配置文件
 # OneNET 产品配置
 PRODUCT_CONFIG = {
     "product_id": "v6IkuqD6vh",
-    "access_key": "THNRWXNxUWxjSWNUOXNoN0pNalBGR3pKVHd3TDBkbjQ=",
+    "access_key": "h7uDwVvrrRlRzX07xVHT/deJGZsHyZ+7zd1tBfc5G10=",
     "default_expire_hours": 720,  # 默认Token有效期：30天
     "devices": {
         "MO": {
